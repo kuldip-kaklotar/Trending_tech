@@ -53,16 +53,19 @@ x.cust={...c};x.bat={brand:b.brand,model:b.model,wm:b.wm,wterms:b.wterms};x.unit
 x.sub=x.qty*x.unit;x.taxable=Math.max(0,x.sub-x.disc);x.tax=+(x.taxable*x.gst/100).toFixed(2);x.total=+(x.taxable+x.tax).toFixed(2);
 x.paid=Math.min(x.paid,x.total);x.bal=+(x.total-x.paid).toFixed(2);x.pstat=x.bal<=0?'Paid':x.paid>0?'Partially Paid':'Unpaid';
 x.wstart=x.date;x.wend=addM(x.date,x.bat.wm);return x}
-const API_URL='https://trending-tech.onrender.com'
+const API_URL='https://trending-tech1.onrender.com'; // backend web service (NOT the static site)
 const useApi=()=>!!API_URL;
 let auth=null,saving=false;try{auth=JSON.parse(sessionStorage.getItem('vt.auth'))}catch(_){}
 async function apiFetch(path,opt={}){let r;try{r=await fetch(API_URL.replace(/\/$/,'')+path,{...opt,cache:'no-store',headers:{'Content-Type':'application/json',...(auth?{Authorization:'Bearer '+auth.token}:{})}})}catch(_){throw new Error('Cannot reach the server')}
-let j={};try{j=await r.json()}catch(_){}if(r.status===401&&auth){auth=null;try{sessionStorage.removeItem('vt.auth')}catch(_){}loginDlg()}
-if(!r.ok){const er=new Error(j.error||'Request failed');er.status=r.status;er.errors=j.errors;throw er}return j}
+const txt=await r.text().catch(()=>'');let j={};try{j=JSON.parse(txt)}catch(_){}if(r.status===401&&auth){auth=null;try{sessionStorage.removeItem('vt.auth')}catch(_){}loginDlg()}
+if(!r.ok){const er=new Error(j.error||('HTTP '+r.status+' on '+path.split('?')[0]+(txt?' - '+txt.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,90):'')));er.status=r.status;er.errors=j.errors;throw er}return j}
 const cs={status:'idle',total:null,err:''};let syncSeq=0,syncBusy=0;
 const custCount=()=>!useApi()?db.customers.length:cs.status==='ok'?cs.total:(cs.status==='error'?'—':'…');
 function csBanner(){if(!useApi())return'<div class="card"><span class="badge warn">Local-only mode</span> This site is not connected to the backend, so customers are stored only in this browser and will differ between devices. Set <b>API_URL</b> in index.html.</div>';
-if(!auth)return'';if(cs.status==='ok')return'';if(cs.status==='error')return`<div class="card"><span class="badge bad">Server unavailable</span> ${e(cs.err)} <button class="s" onclick="syncCustomers()">Retry</button></div>`;return'<div class="card sub">Loading customers from the server…</div>'}
+if(!auth)return'';if(cs.status==='ok')return'';if(cs.status==='error')return`<div class="card"><span class="badge bad">Server unavailable</span> ${e(cs.err)} <button class="s" onclick="syncCustomers()">Retry</button> <button class="s o" onclick="runDiag()">Check connection</button></div>`;return'<div class="card sub">Loading customers from the server…</div>'}
+async function runDiag(){const out=[],H={headers:{Authorization:'Bearer '+(auth?.token||'')}};const t=async(l,path,o)=>{try{const r=await fetch(API_URL.replace(/\/$/,'')+path,{cache:'no-store',...o});out.push(l+': HTTP '+r.status+' - '+(await r.text()).replace(/\s+/g,' ').slice(0,110))}catch(er){out.push(l+': cannot connect (wrong API_URL, service asleep, or CORS - check FRONTEND_ORIGIN)')}};
+await t('Health','/api/health');await t('Login check','/api/auth/me',H);await t('Customers','/api/customers?limit=1',H);
+$('#wdlg').innerHTML='<h2>Connection check</h2><p style="font-size:12px;word-break:break-all">API: '+e(API_URL)+'</p>'+out.map(l=>'<p style="font-size:13px">'+e(l)+'</p>').join('')+'<div class="row"><button onclick="$(\'#wdlg\').close()">Close</button></div>';$('#wdlg').showModal()}
 async function fetchAll(arch){let rows=[],off=0,total=null;for(;;){const r=await apiFetch('/api/customers?archived='+arch+'&limit=500&offset='+off);if(typeof r.total!=='number')throw new Error('Backend is out of date (no total count) - redeploy the backend');
 rows=rows.concat(r.customers);total=r.total;off+=500;if(!r.customers.length||rows.length>=total)break}return{rows,total}}
 async function syncCustomers(quiet){if(!useApi()||!auth)return;if(quiet&&syncBusy)return;const t=++syncSeq;syncBusy++;if(!quiet&&cs.status!=='ok'){cs.status='loading';render()}
@@ -70,7 +73,7 @@ try{const[a,b]=await Promise.all([fetchAll(false),fetchAll(true)]);if(t!==syncSe
 catch(er){if(t!==syncSeq)return;cs.status='error';cs.err=er.status===401?'Session expired - sign in again':er.message}finally{syncBusy--}
 const typing=document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);if(!quiet||!($('#dlg').open||$('#wdlg').open||$('#cdlg').open||typing))render()}
 function loginDlg(msg){const d=$('#cdlg');d.oncancel=ev=>ev.preventDefault();d.innerHTML=`<h2>Sign in to VoltTrack</h2><form onsubmit="event.preventDefault();doLogin(this)"><div class="f" style="grid-template-columns:1fr"><div><label>Email</label><input name="email" type="email" autocomplete="username"></div><div><label>Password</label><input name="password" type="password" autocomplete="current-password"></div></div><div class="fe" id="lerr">${e(msg||'')}</div><div class="row" style="margin-top:12px"><button>Sign in</button></div></form>`;if(!d.open)d.showModal()}
-async function doLogin(f){if(saving)return;saving=true;const b=f.querySelector('button');b.disabled=true;try{const r=await apiFetch('/api/auth/login',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(f)))});auth=r;try{sessionStorage.setItem('vt.auth',JSON.stringify(r))}catch(_){}await syncCustomers();$('#cdlg').oncancel=null;$('#cdlg').close();toast('Signed in')}catch(er){$('#lerr').textContent=er.status===401?'Invalid email or password':er.message;b.disabled=false}finally{saving=false}}
+async function doLogin(f){if(saving)return;saving=true;const b=f.querySelector('button');b.disabled=true;try{const r=await apiFetch('/api/auth/login',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(f)))});if(!r.token)throw new Error('Login reply has no token - backend is not the VoltTrack API');r.role=r.role||r.user?.role||'staff';auth=r;try{sessionStorage.setItem('vt.auth',JSON.stringify(r))}catch(_){}await syncCustomers();$('#cdlg').oncancel=null;$('#cdlg').close();toast('Signed in')}catch(er){$('#lerr').textContent=er.status===401?'Invalid email or password':er.message;b.disabled=false}finally{saving=false}}
 function logout(){auth=null;try{sessionStorage.removeItem('vt.auth')}catch(_){}db.customers=[];db.archived=[];render();loginDlg()}
 function legacyBackup(fresh){try{if(!localStorage.getItem('vt.legacy')&&(db.customers.length||(db.archived||[]).length)&&!fresh)localStorage.setItem('vt.legacy',JSON.stringify({customers:db.customers,archived:db.archived||[]}))}catch(_){}}
 const legacyBtn=()=>useApi()&&auth?.role==='admin'&&localStorage.getItem('vt.legacy')&&!localStorage.getItem('vt.legacyDone')?'<button class="o" onclick="importLegacy()">Import customers saved in this browser</button>':'';
@@ -90,7 +93,7 @@ const T=(h,rows)=>rows.length?`<div class="tw"><table><tr>${h.map(x=>`<th>${x}</
 const NAV=[['Dashboard','▦'],['Customers','👤'],['Battery Products','🔋'],['Battery Stock','📦'],['Purchases','🧾'],['Invoices','📄'],['Warranty','🛡'],['Suppliers','🚚'],['Reports','📊'],['Settings','⚙']];
 function go(v,a=null){view=v;arg=a;q='';render()}
 function render(){$('#nav').innerHTML='<div class="logo">⚡ Volt<span>Track</span></div>'+NAV.map(([n,i])=>`<a class="${view===n||(view==='Profile'&&n==='Customers')?'on':''}" onclick="go('${n}')">${i} ${n}</a>`).join('');
-if(useApi()&&auth)$('#nav').insertAdjacentHTML('beforeend','<a onclick="logout()">⏻ Sign out ('+e(auth.role)+')</a>');$('#main').innerHTML=V[view]();}
+if(useApi()&&auth)$('#nav').insertAdjacentHTML('beforeend','<a onclick="logout()">⏻ Sign out ('+e(auth.role)+')</a>');$('#nav').insertAdjacentHTML('beforeend','<div style="padding:10px 12px;font-size:11px;color:#94a3b8">Build 24Oct-b'+(useApi()?' · API '+e(new URL(API_URL).host):' · local-only')+'</div>');$('#main').innerHTML=V[view]();}
 const srch=ph=>`<input style="max-width:280px" placeholder="${ph}" value="${e(q)}" oninput="q=this.value;const p=this.selectionStart;render();const i=document.querySelector('main input');i.focus();i.setSelectionRange(p,p)">`;
 const has=(q,...f)=>!q||f.some(x=>String(x||'').toLowerCase().includes(q.toLowerCase()));
 const V={
