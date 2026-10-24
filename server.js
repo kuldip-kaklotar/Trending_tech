@@ -13,6 +13,8 @@ app.set('trust proxy', 1);
 app.use(helmet());
 const origins = FRONTEND_ORIGIN.split(',').map(s => s.trim().replace(/\/$/, ''));
 app.use(cors({ origin: (o, cb) => cb(null, !o || origins.includes(o)), methods: ['GET', 'POST', 'PUT', 'DELETE'], allowedHeaders: ['Content-Type', 'Authorization'] }));
+app.set('etag', false);
+app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });   // never let a phone/proxy cache API data
 app.use(express.json({ limit: '1mb' }));
 
 // ---------- helpers ----------
@@ -63,11 +65,13 @@ app.get('/api/auth/me', auth, (req, res) => res.json({ email: req.user.email, ro
 
 app.get('/api/customers', wrap(async (req, res) => {
   const archived = req.query.archived === 'true', q = String(req.query.q || '').trim();
-  const limit = Math.min(+req.query.limit || 1000, 5000), offset = Math.max(+req.query.offset || 0, 0);
-  const p = [archived, limit, offset]; let where = 'archived = $1';
-  if (q) { p.push('%' + q.replace(/[%_\\]/g, '\\$&') + '%'); where += ` AND (name ILIKE $4 OR mobile ILIKE $4 OR reg_no ILIKE $4)`; }
-  const r = await pool.query(`SELECT ${COLS} FROM customers WHERE ${where} ORDER BY id LIMIT $2 OFFSET $3`, p);
-  res.json({ customers: r.rows });
+  const limit = Math.min(Math.max(+req.query.limit || 500, 1), 1000), offset = Math.max(+req.query.offset || 0, 0);
+  const fp = [archived]; let where = 'archived = $1';
+  if (q) { fp.push('%' + q.replace(/[%_\\]/g, '\\$&') + '%'); where += ' AND (name ILIKE $2 OR mobile ILIKE $2 OR reg_no ILIKE $2)'; }
+  const [rows, tot] = await Promise.all([
+    pool.query(`SELECT ${COLS} FROM customers WHERE ${where} ORDER BY id LIMIT $${fp.length + 1} OFFSET $${fp.length + 2}`, [...fp, limit, offset]),
+    pool.query(`SELECT count(*)::int AS n FROM customers WHERE ${where}`, fp)]);
+  res.json({ customers: rows.rows, total: tot.rows[0].n, limit, offset });   // total = ALL matching rows, not just this page
 }));
 app.get('/api/customers/:code', wrap(async (req, res) => {
   const r = await pool.query(`SELECT ${COLS} FROM customers WHERE customer_code=$1`, [req.params.code]);
@@ -99,18 +103,30 @@ app.post('/api/customers/:code/restore', adminOnly, wrap(async (req, res) => {
   r.rowCount ? res.json(r.rows[0]) : res.status(404).json({ error: 'Not found' });
 }));
 // One-time, repeatable import of customers from the browser's old localStorage data. Never creates duplicates.
+// Repeatable import of a browser's old localStorage customers. Never duplicates a bike (registration no.) and never
+// drops a person: if an old ID is already used by someone else, the record gets a new ID. Returns map = [{from,to}]
+// so the browser can re-point its local purchases at the right server customer.
 app.post('/api/customers/import', adminOnly, wrap(async (req, res) => {
   const list = Array.isArray(req.body.customers) ? req.body.customers.slice(0, 5000) : [];
-  const out = { imported: 0, skipped: [], invalid: [] }, c = await pool.connect();
+  const out = { imported: 0, skipped: [], invalid: [], map: [] }, c = await pool.connect();
   try {
     await c.query('BEGIN');
     for (const raw of list) {
-      const code = /^C-\d{1,9}$/.test(String(raw.id || '')) ? raw.id : null, { v, errors, ok } = validate(raw);
-      if (!ok) { out.invalid.push({ id: raw.id, errors }); continue; }
+      const { v, errors, ok } = validate(raw), from = String(raw.id || '');
+      if (!ok) { out.invalid.push({ id: from, errors }); continue; }
+      let code = /^C-\d{1,9}$/.test(from) ? from : null;
+      const same = code && await c.query('SELECT customer_code FROM customers WHERE customer_code=$1 AND reg_no=$2', [code, v.reg]);
+      if (same && same.rowCount) { out.skipped.push(from); out.map.push({ from, to: code }); continue; }       // already imported
+      const archived = !!raw.archivedOn;
+      if (!archived) {
+        const dup = await c.query('SELECT customer_code FROM customers WHERE reg_no=$1 AND NOT archived', [v.reg]);
+        if (dup.rowCount) { out.skipped.push(from || v.reg); if (from) out.map.push({ from, to: dup.rows[0].customer_code }); continue; }
+      }
+      if (code && (await c.query('SELECT 1 FROM customers WHERE customer_code=$1', [code])).rowCount) code = null;  // ID used by another person
       const r = await c.query(`INSERT INTO customers (customer_code,name,mobile,alt_mobile,email,address,city,state,pin,reg_no,bike_brand,bike_model,chassis,archived,archived_at)
-        VALUES (COALESCE($1,'C-'||nextval('customer_code_seq')),$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,CASE WHEN $14 THEN now() END)
-        ON CONFLICT DO NOTHING RETURNING id`, [code, v.name, v.mobile, v.alt, v.email, v.address, v.city, v.state, v.pin, v.reg, v.brand, v.model, v.chassis, !!raw.archivedOn]);
-      r.rowCount ? out.imported++ : out.skipped.push(raw.id || v.reg);
+        VALUES (COALESCE($1,'C-'||nextval('customer_code_seq')),$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,CASE WHEN $14 THEN now() END) RETURNING customer_code`,
+        [code, v.name, v.mobile, v.alt, v.email, v.address, v.city, v.state, v.pin, v.reg, v.brand, v.model, v.chassis, archived]);
+      out.imported++; if (from) out.map.push({ from, to: r.rows[0].customer_code });
     }
     await c.query(`SELECT setval('customer_code_seq', GREATEST(1000, (SELECT COALESCE(MAX(substring(customer_code from 3)::bigint),0) FROM customers), (SELECT last_value FROM customer_code_seq)))`);
     await c.query('COMMIT'); res.json(out);
