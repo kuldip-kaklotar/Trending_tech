@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>VoltTrack – Bike Battery Manager</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#0B1220"><title>VoltTrack – Bike Battery Manager</title>
 <style>
 :root{--navy:#0B1220;--blue:#2563EB;--green:#22C55E;--bg:#F3F6FA;--card:#fff;--tx:#1E293B;--mut:#64748B;--bd:#E2E8F0;--amb:#F59E0B;--red:#EF4444;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0B1220;--card:#131C2E;--tx:#E2E8F0;--mut:#94A3B8;--bd:#24304A;color-scheme:dark}}
@@ -32,8 +32,105 @@ dialog{border:0;border-radius:14px;padding:20px;width:min(720px,94vw);max-height
 .inv hr{margin:10px 0;border:0;border-top:2px solid #2563EB}.inv.pdf{width:210mm;padding:14mm 15mm;font-size:12.5px}
 @page{size:A4;margin:0}
 @media print{html,body{margin:0!important;padding:0!important;background:#fff!important;height:auto!important}:root{padding:0!important}.app,#toast,.np,#wdlg,#cdlg{display:none!important}#dlg{position:absolute!important;top:0!important;left:0!important;margin:0!important;width:210mm!important;max-width:none!important;height:auto!important;max-height:none!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;background:#fff!important}#dlg::backdrop{display:none}.inv{padding:14mm 15mm!important;font-size:12.5px;width:210mm;margin:0;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}.inv table,.inv p{break-inside:avoid}}
+/* ===== UI refresh: modern look + mobile-first layout (no external libraries) ===== */
+:root{--r:16px;--sh:0 1px 2px rgba(15,23,42,.05),0 6px 20px rgba(15,23,42,.06)}
+body{-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+h1{font-size:24px;letter-spacing:-.02em}
+.card{border-radius:var(--r);box-shadow:var(--sh);transition:box-shadow .2s,transform .2s}
+.grid .card:hover{transform:translateY(-2px)}
+.grid .stat{position:relative;overflow:hidden;padding:16px 16px 16px 18px}
+.grid .stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--blue)}
+.grid .stat:nth-child(2)::before{background:var(--green)}.grid .stat:nth-child(3)::before{background:#8B5CF6}.grid .stat:nth-child(4)::before{background:var(--amb)}.grid .stat:nth-child(5)::before{background:#06B6D4}
+.stat b{font-size:26px;letter-spacing:-.02em}
+button,.btn{border-radius:12px;font-weight:600;background:linear-gradient(135deg,#2563EB,#4F46E5);box-shadow:0 2px 8px rgba(37,99,235,.25)}
+button.g{background:linear-gradient(135deg,#22C55E,#16A34A);color:#052e16;box-shadow:0 2px 8px rgba(34,197,94,.25)}
+button.o{background:transparent;color:var(--tx);box-shadow:none}button.d{background:var(--red);box-shadow:none}
+button:active{transform:scale(.97)}
+input,select,textarea{border-radius:12px;padding:10px 12px;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.18)}
+nav a{align-items:center;gap:10px}nav a .ic{width:22px;text-align:center}
+nav a.on{background:linear-gradient(135deg,#2563EB,#4F46E5);box-shadow:0 4px 12px rgba(37,99,235,.35)}
+nav .morebtn,.mtop{display:none}
+tr:hover td{background:rgba(37,99,235,.04)}
+.badge{letter-spacing:.01em}
+dialog{border-radius:20px;box-shadow:0 24px 60px rgba(2,6,23,.35)}
+.inv{overflow-x:auto}
+@media screen and (max-width:760px){
+ body{font-size:15px}
+ .app{display:block;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+ .mtop{display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;font-weight:700;font-size:18px;padding:12px 16px;box-shadow:0 2px 12px rgba(2,6,23,.25)}
+ .mtop span{color:var(--green)}
+ main{padding:14px 14px 20px}
+ h1{font-size:21px}
+ nav{position:fixed;left:0;right:0;bottom:0;top:auto;height:auto;z-index:30;display:flex;flex-wrap:wrap;justify-content:space-around;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));border-top:1px solid #1e293b;overflow:visible;box-shadow:0 -6px 24px rgba(2,6,23,.25)}
+ nav .logo,nav .bl{display:none}
+ nav a{flex:1 1 0;flex-direction:column;gap:1px;padding:6px 2px;font-size:11px;text-align:center;border-radius:12px;min-width:0}
+ nav a .ic{font-size:20px;width:auto}
+ nav a.on{box-shadow:none}
+ nav a.more{display:none}nav .morebtn{display:flex}
+ nav.open a.more{display:flex;flex:0 0 33.33%;order:-1;padding:12px 2px}
+ .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+ .grid .stat:last-child:nth-child(odd){grid-column:1/-1}
+ .stat b{font-size:22px}
+ .card{padding:14px}
+ .row{gap:8px}.row>button,.row>.btn{flex:1 1 auto}
+ .row input,.row select{max-width:none!important;flex:1 1 100%}
+ button,.btn{min-height:42px;padding:10px 14px}button.s{min-height:34px}
+ input,select,textarea{font-size:16px;min-height:44px}
+ #toast{left:12px;right:12px;bottom:calc(88px + env(safe-area-inset-bottom,0px));text-align:center}
+ dialog{width:100vw!important;max-width:100vw!important;margin:auto 0 0 0;border-radius:22px 22px 0 0;max-height:94vh;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))}
+ #wdlg,#cdlg{margin:auto 14px;width:auto!important;max-width:none!important;border-radius:20px}
+ .tw{overflow:visible}
+ table.resp,table.resp tbody,table.resp tr,table.resp td{display:block;width:100%}
+ table.resp tr:has(th){display:none}
+ table.resp tr{border:1px solid var(--bd);border-radius:14px;padding:8px 12px;margin-bottom:10px;background:var(--card)}
+ table.resp tr:hover td{background:none}
+ table.resp td{display:flex;justify-content:space-between;align-items:center;gap:14px;border:0;padding:6px 0;white-space:normal;text-align:right;word-break:break-word}
+ table.resp td::before{content:attr(data-label);flex:0 0 36%;text-align:left;color:var(--mut);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+ table.resp td[data-label=""]::before{display:none}
+ table.resp td[data-label=""]{justify-content:flex-end;flex-wrap:wrap;padding-top:8px;border-top:1px dashed var(--bd);margin-top:4px}
+ .card:has(>.tw){background:transparent;border:0;box-shadow:none;padding:0}
+ .bars{gap:6px}
+ .inv{padding:12px;font-size:12px}.tot{width:100%}
+}
+/* ===== Settings page ===== */
+.sec{margin-bottom:16px}
+.sec-h{display:flex;align-items:flex-start;gap:12px;margin-bottom:16px}
+.sec-h .ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(37,99,235,.1);font-size:19px;flex:0 0 auto}
+.sec-h h2{margin:0;font-size:17px;letter-spacing:-.01em}.sec-h p{margin:2px 0 0;color:var(--mut);font-size:13px;line-height:1.4}
+.f{grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));align-items:start;gap:14px}
+.f>div{min-width:0}
+label{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hint{font-size:12px;color:var(--mut);margin-top:4px;line-height:1.4}
+.fe{color:var(--red);font-size:12px;margin-top:3px}
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.sw{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--bd);border-radius:14px;cursor:pointer;margin:0;color:var(--tx);font-size:14px;font-weight:500;flex:1 1 260px;position:relative;white-space:normal;overflow:visible;transition:border-color .15s,background .15s}
+.sw:hover{border-color:var(--blue)}
+.sw input{position:absolute;opacity:0;width:1px;height:1px;min-height:0}
+.sw .trk{width:46px;height:26px;border-radius:99px;background:#CBD5E1;position:relative;flex:0 0 auto;transition:.2s}
+.sw .trk::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:.2s}
+.sw input:checked+.trk{background:var(--green)}.sw input:checked+.trk::after{transform:translateX(20px)}
+.sw input:focus-visible+.trk{box-shadow:0 0 0 3px rgba(37,99,235,.35)}
+.sw small{display:block;color:var(--mut);font-size:12px;font-weight:400}
+.tpl{border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.tpl textarea{min-height:84px;resize:vertical;line-height:1.5}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chips code{background:rgba(37,99,235,.08);color:var(--blue);border-radius:99px;padding:4px 10px;font-size:12px;cursor:pointer;transition:.15s}
+.chips code:hover{background:var(--blue);color:#fff}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:10px}
+.kv>div{background:rgba(100,116,139,.08);border-radius:12px;padding:10px 12px;font-weight:500;word-break:break-word}
+.kv small{display:block;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:600;margin-bottom:2px}
+.bar{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-bottom:16px}
+.statusrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+@media screen and (max-width:760px){
+ .sec-h .ico{width:36px;height:36px}
+ .sw{flex-basis:100%}
+ .bar.sticky{position:sticky;bottom:calc(78px + env(safe-area-inset-bottom,0px));background:var(--card);padding:10px;border:1px solid var(--bd);border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,.18);z-index:5}
+ .bar.sticky button{flex:1}
+ .sec button{min-height:44px}
+}
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script></head><body>
-<div class="app"><nav id="nav"></nav><main id="main"></main></div>
+<div class="app"><div class="mtop">⚡ Volt<span>Track</span></div><nav id="nav"></nav><main id="main"></main></div>
 <dialog id="dlg"></dialog><dialog id="cdlg"></dialog><dialog id="wdlg"></dialog><div id="toast"></div>
 <script>
 const K='volttrack.v1',$=s=>document.querySelector(s);
@@ -92,8 +189,10 @@ const cust=id=>db.customers.find(c=>c.id===id),prod=id=>db.products.find(c=>c.id
 const T=(h,rows)=>rows.length?`<div class="tw"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${rows.join('')}</table></div>`:`<div class="empty">${q?'No results match your search.':'Nothing here yet – use the Add button to create the first record.'}</div>`;
 const NAV=[['Dashboard','▦'],['Customers','👤'],['Battery Products','🔋'],['Battery Stock','📦'],['Purchases','🧾'],['Invoices','📄'],['Warranty','🛡'],['Suppliers','🚚'],['Reports','📊'],['Settings','⚙']];
 function go(v,a=null){view=v;arg=a;q='';render()}
-function render(){$('#nav').innerHTML='<div class="logo">⚡ Volt<span>Track</span></div>'+NAV.map(([n,i])=>`<a class="${view===n||(view==='Profile'&&n==='Customers')?'on':''}" onclick="go('${n}')">${i} ${n}</a>`).join('');
-if(useApi()&&auth)$('#nav').insertAdjacentHTML('beforeend','<a onclick="logout()">⏻ Sign out ('+e(auth.role)+')</a>');$('#nav').insertAdjacentHTML('beforeend','<div style="padding:10px 12px;font-size:11px;color:#94a3b8">Build 24Oct-b'+(useApi()?' · API '+e(new URL(API_URL).host):' · local-only')+'</div>');$('#main').innerHTML=V[view]();}
+const PRIMARY=['Dashboard','Customers','Purchases','Invoices'];
+function decorateTables(){document.querySelectorAll('main table').forEach(t=>{t.classList.add('resp');const h=[...t.querySelectorAll('th')].map(x=>x.textContent.trim());t.querySelectorAll('tr').forEach(r=>[...r.children].forEach((c,i)=>{if(c.tagName==='TD')c.dataset.label=h[i]||''}))})}
+function render(){$('#nav').classList.remove('open');$('#nav').innerHTML='<div class="logo">⚡ Volt<span>Track</span></div>'+NAV.map(([n,i])=>`<a class="${view===n||(view==='Profile'&&n==='Customers')?'on':''} ${PRIMARY.includes(n)?'':'more'}" onclick="go('${n}')"><span class="ic">${i}</span><span>${n}</span></a>`).join('')+'<a class="morebtn" onclick="$(\'#nav\').classList.toggle(\'open\')"><span class="ic">⋯</span><span>More</span></a>';
+if(useApi()&&auth)$('#nav').insertAdjacentHTML('beforeend','<a class="more" onclick="logout()"><span class="ic">⏻</span><span>Sign out ('+e(auth.role)+')</span></a>');$('#nav').insertAdjacentHTML('beforeend','<div class="bl" style="padding:10px 12px;font-size:11px;color:#94a3b8">Build 24Oct-b'+(useApi()?' · API '+e(new URL(API_URL).host):' · local-only')+'</div>');$('#main').innerHTML=V[view]();decorateTables();}
 const srch=ph=>`<input style="max-width:280px" placeholder="${ph}" value="${e(q)}" oninput="q=this.value;const p=this.selectionStart;render();const i=document.querySelector('main input');i.focus();i.setSelectionRange(p,p)">`;
 const has=(q,...f)=>!q||f.some(x=>String(x||'').toLowerCase().includes(q.toLowerCase()));
 const V={
@@ -122,7 +221,10 @@ return`<h1>Sales reports</h1><div class="row"><label style="margin:0">From</labe
 <div class="card"><h2>Sales by brand</h2>${T(['Brand','Sales'],Object.entries(by).map(([k,v])=>`<tr><td>${e(k)}</td><td>${money(v)}</td></tr>`))}</div>
 <div class="card"><h2>Outstanding payments</h2>${T(['Customer','Mobile','Invoice','Balance'],P.filter(x=>x.bal>0).map(x=>`<tr><td>${e(x.cust.name)}</td><td>${e(x.cust.mobile)}</td><td>${x.invNo}</td><td>${money(x.bal)}</td></tr>`))}</div>
 <div class="card"><h2>Warranty expiry</h2>${T(['Customer','Serial','Expires','Status'],[...P].sort((a,b)=>a.wend>b.wend?1:-1).map(x=>`<tr><td>${e(x.cust.name)}</td><td>${e(x.serial)}</td><td>${x.wend}</td><td>${wb(x)}</td></tr>`))}</div>`},
-Settings(){return`<h1>Settings</h1><div class="card"><button onclick="setForm()">Edit business &amp; tax settings</button> <button class="d" onclick="if(confirm('Reset all data to the sample records?')){db=seed();migrate();save();render()}">Reset sample data</button></div>${smsConfig()}${coSection()}${smsSection()}`}};
+Settings(){const b=db.settings;return`<h1>Settings</h1><div class="sub">Business details, SMS gateway, templates and battery companies</div>
+<div class="card sec">${secH('🏢','Business & tax','Printed on every invoice')}<div class="kv"><div><small>Business</small>${e(b.biz)}</div><div><small>Phone</small>${e(b.phone)}</div><div><small>GSTIN</small>${e(b.gstin||'—')}</div><div><small>Default GST</small>${b.gst}%</div></div><div class="kv" style="margin-top:10px"><div><small>Address</small>${e(b.addr)}</div></div><div class="row" style="margin-top:14px"><button onclick="setForm()">Edit business &amp; tax settings</button></div></div>
+${smsConfig()}${coSection()}${smsSection()}
+<div class="card sec" style="border-color:rgba(239,68,68,.4)">${secH('⚠️','Reset local data','Restores the sample batteries, purchases and invoices stored in this browser. Customers saved on the server are not changed.')}<button class="o" style="color:var(--red);border-color:var(--red)" onclick="resetAsk()">Reset sample data…</button></div>`}};
 // dialogs
 function dlg(h){$('#dlg').innerHTML=h;if(!$('#dlg').open)$('#dlg').showModal()}
 function close_(){$('#dlg').close()}
@@ -197,7 +299,7 @@ function brandSel(v){return `<input name="brand" list="bl" autocomplete="off" pl
 function coDialog(id,inForm){const v=id?db.companies.find(c=>c.id===id):{};const i=(n,l)=>`<div><label>${l}</label><input name="${n}" value="${e(v[n])}"><div class="fe"></div></div>`;$('#cdlg').innerHTML=`<h2>${id?'Edit':'Add'} battery company</h2><form onsubmit="event.preventDefault();coSubmit(this,'${id||''}',${!!inForm})"><div class="f">${i('name','Company name')}${i('code','Code (optional)')}${i('phone','Contact number (optional)')}${i('web','Website (optional)')}${i('desc','Description (optional)')}<div><label>Status</label><select name="active"><option ${v.active!==false?'selected':''}>Active</option><option ${v.active===false?'selected':''}>Inactive</option></select></div></div><div class="row" style="margin-top:14px"><button>Save</button><button type="button" class="o" onclick="$('#cdlg').close()">Cancel</button></div></form>`;$('#cdlg').showModal()}
 function coSubmit(f,id,inForm){if(f.dataset.busy)return;clearErr(f);const d=Object.fromEntries(new FormData(f));d.name=d.name.trim();if(!d.name)return fieldErr(f,'name','Company name is required');if(db.companies.some(c=>c.id!==id&&c.name.toLowerCase()===d.name.toLowerCase()))return fieldErr(f,'name','This company already exists');d.active=d.active==='Active';let c;if(id){c=db.companies.find(x=>x.id===id);Object.assign(c,d);db.products.forEach(p=>{if(p.brandId===id)p.brand=c.name})}else{c={...d,id:'CO-'+String(db.companies.length+1).padStart(3,'0')+Math.floor(Math.random()*9)};db.companies.push(c)}save();$('#cdlg').close();if(inForm){const i=document.querySelector('#dlg input[name=brand]');if(i){i.value=c.name;clearErr($('#dlg form'))}toast('Company added and selected')}else{render();toast('Company saved')}}
 function togCo(id){const c=db.companies.find(x=>x.id===id);c.active=!c.active;save();render()}
-function coSection(){const L=db.companies.filter(c=>has(q,c.name,c.code));return`<div class="card"><h2>Battery Companies / Brands</h2><div class="row">${srch('Search companies')}<div class="sp"></div><button onclick="coDialog()">+ Add Battery Company</button></div>${T(['ID','Company','Code','Phone','Status',''],L.map(c=>`<tr><td>${c.id}</td><td>${e(c.name)}</td><td>${e(c.code)}</td><td>${e(c.phone)}</td><td><span class="badge ${c.active?'ok':'bad'}">${c.active?'Active':'Inactive'}</span></td><td><button class="s o" onclick="coDialog('${c.id}')">Edit</button> <button class="s o" onclick="togCo('${c.id}')">${c.active?'Deactivate':'Activate'}</button></td></tr>`))}</div>`}
+function coSection(){const L=db.companies.filter(c=>has(q,c.name,c.code));return`<div class="card sec">${secH('🏭','Battery companies / brands','Used in the battery form dropdown')}<div class="row">${srch('Search companies')}<div class="sp"></div><button onclick="coDialog()">+ Add Battery Company</button></div>${T(['ID','Company','Code','Phone','Status',''],L.map(c=>`<tr><td>${c.id}</td><td>${e(c.name)}</td><td>${e(c.code)}</td><td>${e(c.phone)}</td><td><span class="badge ${c.active?'ok':'bad'}">${c.active?'Active':'Inactive'}</span></td><td><button class="s o" onclick="coDialog('${c.id}')">Edit</button> <button class="s o" onclick="togCo('${c.id}')">${c.active?'Deactivate':'Activate'}</button></td></tr>`))}</div>`}
 const smsB=s=>`<span class="badge ${s==='Sent'?'ok':s==='Failed'?'bad':'warn'}">${s}</span>`;
 const lastSms=(id,t='purchase')=>[...db.sms].reverse().find(s=>s.pid===id&&(s.type||'purchase')===t);
 const smsLabel=id=>{const l=lastSms(id);return !l?'Send SMS':l.status==='Failed'?'Retry SMS':'Resend SMS'};
@@ -221,18 +323,25 @@ const to=normMobile(cust(x.cid)?.mobile||x.cust.mobile);if(!to){warn('Invalid Mo
 smsBusy[k]=1;const log={id:uid('S-'),pid,type,invNo:x.invNo,to:'+91'+to,body:smsBody(x,type),status:'Pending',ts:new Date().toISOString(),resp:'',err:'',mid:''};db.sms.push(log);save();if(invOpen())showInv(pid);
 try{log.resp=String(await smsTransport(log)).slice(0,300);log.status='Sent'}catch(er){log.status='Failed';log.err=String(er.message).slice(0,300)}smsBusy[k]=0;save();if(invOpen())showInv(pid);toast('SMS '+(log.status==='Sent'?'accepted by gateway':'failed: '+log.err))}
 const stCls={'Connected':'ok','Testing':'info','Not Configured':'warn'};
-function smsConfig(){const c=smsCfg(),g=c.gw,I=(id,l,v,x='')=>`<div><label>${l}</label><input id="${id}" value="${e(v)}" ${x}><div class="fe" id="e_${id}"></div></div>`;
-return`<div class="card"><h2>C-DAC SMS Gateway Configuration</h2><p class="sub">Credentials are never stored in this app. They live in the SMS backend’s environment variables (see <b>sms-backend/README.md</b>). This page only keeps non-secret settings.</p>
-<div class="row"><label style="margin:0"><input type="checkbox" id="s_en" style="width:auto" ${c.enabled?'checked':''}> Enable SMS gateway</label><label style="margin:0"><input type="checkbox" id="s_auto" style="width:auto" ${c.auto?'checked':''}> Send purchase SMS automatically</label></div>
-<div class="f">${I('s_be','SMS backend URL (https://…)',c.backend)}<div><label>Backend access key (this session only, never saved)</label><input id="ak" type="password" autocomplete="off" placeholder="${sessKey?'•••••••• (entered)':'Enter to use backend'}"></div>${I('s_sd','Sender ID',c.sender)}${I('s_en2','Entity / Principal Entity ID',c.entity)}${I('s_t0','Default template ID',c.tid.def)}
-<div><label>Language / encoding</label><select id="s_lg">${['English (GSM)','Unicode (Hindi/Gujarati)'].map(x=>`<option ${x===c.lang?'selected':''}>${x}</option>`).join('')}</select></div></div>
-<div class="card" style="margin:12px 0"><b>Gateway details reported by the backend (read-only)</b><br>${g?`Endpoint: ${e(g.endpointHost||'—')} · Method: ${e(g.method||'—')} · Format: ${e(g.format||'—')} · Auth: ${e(g.authMethod||'—')} · Credentials: <span class="badge ${g.credentials==='configured'?'ok':'bad'}">${e(g.credentials||'unknown')}</span>${g.missing?.length?'<br>Missing: '+e(g.missing.join(', ')):''}`:'Not loaded yet – run Test Connection.'}</div>
-<h2>Message templates</h2><p class="sub">Placeholders: ${SMS_PH.map(p=>'{'+p+'}').join(' ')}. Approved DLT text must match exactly.</p>
-${SMS_TYPES.map(([k,l])=>`<div style="margin-bottom:10px"><label>${l}</label><textarea id="s_tp_${k}" rows="2">${e(c.tpl[k]||SMS_DEF[k])}</textarea><div class="f" style="margin-top:4px">${I('s_ti_'+k,'DLT template ID for this message',c.tid[k])}</div><div class="fe" id="e_s_tp_${k}"></div></div>`).join('')}
-<div class="row"><button onclick="saveSmsCfg()">Save settings</button><button class="o" onclick="render()">Cancel</button></div>
-<hr style="border:0;border-top:1px solid var(--bd)"><div class="row"><b>Connection:</b> <span class="badge ${stCls[c.status||'Not Configured']||'bad'}">${c.status||'Not Configured'}</span><span class="sub" style="margin:0">${c.lastTest?'Last test '+c.lastTest.slice(0,16).replace('T',' ')+' – '+e(c.lastResult):'Never tested'}</span><div class="sp"></div><button class="o" onclick="smsTest()" ${c.status==='Testing'?'disabled':''}>Test Connection</button></div>
-<p class="sub">“Connected” means the backend reached the gateway and credentials were accepted. It does not prove an SMS can be delivered.</p>
-<div class="f"><div><label>Test mobile number</label><input id="ts_n" placeholder="98XXXXXXXX"><div class="fe" id="e_ts_n"></div></div><div><label>Test message</label><input id="ts_m" value="VoltTrack test message"></div></div><div class="row" style="margin-top:8px"><button class="g" onclick="smsTestSend()">Send Test SMS</button><span class="sub" style="margin:0">Never sent automatically.</span></div></div>`}
+const secH=(ic,t,p)=>`<div class="sec-h"><div class="ico">${ic}</div><div><h2>${t}</h2><p>${p}</p></div></div>`;
+function insPh(t){const a=window._ta;if(!a)return toast('Tap inside a template first');a.setRangeText(t,a.selectionStart,a.selectionEnd,'end');a.focus();a.dispatchEvent(new Event('input'))}
+function resetAsk(){const w=$('#wdlg');w.innerHTML='<h2>Reset sample data?</h2><p>This clears batteries, purchases, invoices and SMS settings stored in this browser and restores the sample records. Customers saved on the server are not touched.</p><div class="row"><button class="d" onclick="resetDo()">Reset</button><button class="o" onclick="$(\'#wdlg\').close()">Cancel</button></div>';w.showModal()}
+function resetDo(){$('#wdlg').close();try{localStorage.removeItem(K)}catch(_){}load();render();syncCustomers();toast('Sample data restored')}
+function smsConfig(){const c=smsCfg(),g=c.gw,sw=(id,on,t,h)=>`<label class="sw"><input type="checkbox" id="${id}" ${on?'checked':''}><span class="trk"></span><span>${t}<small>${h}</small></span></label>`,
+I=(id,l,v,h)=>`<div><label for="${id}">${l}</label><input id="${id}" value="${e(v)}" autocomplete="off">${h?`<div class="hint">${h}</div>`:''}<div class="fe" id="e_${id}"></div></div>`;
+return`<div class="card sec">${secH('📡','C-DAC SMS gateway','Credentials stay on the SMS backend (environment variables). Only non-secret settings are kept here.')}
+<div class="row" style="margin-bottom:16px">${sw('s_en',c.enabled,'Enable SMS gateway','Turn on to allow sending')}${sw('s_auto',c.auto,'Send purchase SMS automatically','After every saved purchase')}</div>
+<div class="f">${I('s_be','SMS backend URL',c.backend,'Address of your SMS service, https://…')}<div><label for="ak">Access key (this session)</label><input id="ak" type="password" autocomplete="off" placeholder="${sessKey?'•••••••• entered':'Enter to use backend'}"><div class="hint">Never saved in the browser</div></div>
+${I('s_sd','Sender ID',c.sender,'3–11 letters or digits')}${I('s_en2','Entity ID',c.entity,'DLT principal entity ID')}${I('s_t0','Default template ID',c.tid.def,'Used when a message has no own ID')}
+<div><label for="s_lg">Language / encoding</label><select id="s_lg">${['English (GSM)','Unicode (Hindi/Gujarati)'].map(x=>`<option ${x===c.lang?'selected':''}>${x}</option>`).join('')}</select></div></div></div>
+<div class="card sec">${secH('ℹ️','Gateway details','Read-only values reported by the backend after Test Connection')}${g?`<div class="kv"><div><small>Endpoint</small>${e(g.endpointHost||'—')}</div><div><small>Method</small>${e(g.method||'—')}</div><div><small>Format</small>${e(g.format||'—')}</div><div><small>Auth</small>${e(g.authMethod||'—')}</div><div><small>Credentials</small><span class="badge ${g.credentials==='configured'?'ok':'bad'}">${e(g.credentials||'unknown')}</span></div></div>${g.missing?.length?`<div class="hint">Missing: ${e(g.missing.join(', '))}</div>`:''}`:'<div class="hint">Not loaded yet – run Test Connection below.</div>'}</div>
+<div class="card sec">${secH('✉️','Message templates','Approved DLT text must match exactly. Tap a placeholder to insert it at the cursor.')}<div class="chips">${SMS_PH.map(p=>`<code onclick="insPh('{${p}}')">{${p}}</code>`).join('')}</div>
+${SMS_TYPES.map(([k,l])=>{const t=c.tpl[k]||SMS_DEF[k];return`<div class="tpl"><div class="f"><div style="grid-column:1/-1"><label for="s_tp_${k}">${l}</label><textarea id="s_tp_${k}" rows="3" onfocus="window._ta=this" oninput="this.nextElementSibling.textContent=this.value.length+' characters'">${e(t)}</textarea><div class="hint">${t.length} characters</div><div class="fe" id="e_s_tp_${k}"></div></div>${I('s_ti_'+k,'DLT template ID',c.tid[k])}</div></div>`}).join('')}</div>
+<div class="bar sticky"><button class="o" onclick="render()">Cancel</button><button onclick="saveSmsCfg()">Save settings</button></div>
+<div class="card sec">${secH('🔌','Connection & test','Check the backend before sending real messages')}<div class="statusrow"><span class="badge ${stCls[c.status||'Not Configured']||'bad'}">${c.status||'Not Configured'}</span><span class="hint" style="margin:0">${c.lastTest?'Last test '+c.lastTest.slice(0,16).replace('T',' ')+' – '+e(c.lastResult):'Never tested'}</span></div>
+<div class="hint" style="margin-bottom:12px">“Connected” means the backend reached the gateway and the credentials were accepted. It does not prove an SMS can be delivered.</div><div class="row"><button class="o" onclick="smsTest()" ${c.status==='Testing'?'disabled':''}>Test Connection</button></div>
+<div class="f" style="margin-top:6px"><div><label for="ts_n">Test mobile number</label><input id="ts_n" inputmode="tel" placeholder="98XXXXXXXX"><div class="fe" id="e_ts_n"></div></div><div><label for="ts_m">Test message</label><input id="ts_m" value="VoltTrack test message"></div></div>
+<div class="row" style="margin-top:12px"><button class="g" onclick="smsTestSend()">Send test SMS</button><span class="hint" style="margin:0">Never sent automatically.</span></div></div>`}
 function saveSmsCfg(){const v=id=>($('#'+id).value||'').trim(),c=smsCfg();document.querySelectorAll('.fe').forEach(x=>x.textContent='');let ok=true;const bad=(id,m)=>{$('#e_'+id).textContent=m;ok=false};
 const be=v('s_be');if(be){try{const u=new URL(be);if(!/^https?:$/.test(u.protocol)||(u.protocol==='http:'&&!/^(localhost|127\.0\.0\.1)$/.test(u.hostname)))throw 0}catch(_){bad('s_be','Enter a valid https:// URL')}}
 if($('#s_en').checked&&!be)bad('s_be','Backend URL is required to enable SMS');
@@ -249,7 +358,7 @@ async function smsTestSend(){const c=smsCfg(),n=normMobile($('#ts_n').value),msg
 if(!msg||msg.length>1000)return toast('Enter a test message (max 1000 characters)');if(smsBusy.test)return;smsBusy.test=1;
 const log={id:uid('S-'),pid:'TEST',type:'test',invNo:'TEST',to:'+91'+n,body:msg,status:'Pending',ts:new Date().toISOString(),resp:'',err:'',mid:''};db.sms.push(log);
 try{log.resp=String(await smsTransport(log)).slice(0,300);log.status='Sent'}catch(er){log.status='Failed';log.err=String(er.message).slice(0,300)}smsBusy.test=0;save();render();toast(log.status==='Sent'?'Test SMS accepted by gateway'+(log.mid?' (ref '+log.mid+')':''):'Test SMS failed: '+log.err)}
-function smsSection(){return`<div class="card"><h2>SMS delivery log</h2><p class="sub">“Sent” = accepted by the gateway. Handset delivery is not confirmed unless the provider reports it.</p>${T(['Time','To','Invoice','Type','Status','Message ID','Detail'],[...db.sms].reverse().slice(0,30).map(s=>`<tr><td>${s.ts.slice(0,16).replace('T',' ')}</td><td>${e(s.to)}</td><td>${s.invNo}</td><td>${e(s.type||'purchase')}</td><td>${smsB(s.status)}</td><td>${e(s.mid||'')}</td><td style="white-space:normal;max-width:300px">${e(s.err||s.resp||'')}</td></tr>`))}</div>`}
+function smsSection(){return`<div class="card sec">${secH('📜','SMS delivery log','“Sent” = accepted by the gateway. Handset delivery is not confirmed unless the provider reports it.')}${T(['Time','To','Invoice','Type','Status','Message ID','Detail'],[...db.sms].reverse().slice(0,30).map(s=>`<tr><td>${s.ts.slice(0,16).replace('T',' ')}</td><td>${e(s.to)}</td><td>${s.invNo}</td><td>${e(s.type||'purchase')}</td><td>${smsB(s.status)}</td><td>${e(s.mid||'')}</td><td style="white-space:normal;max-width:300px">${e(s.err||s.resp||'')}</td></tr>`))}</div>`}
 
 load();render();boot();
 </script></body></html>
