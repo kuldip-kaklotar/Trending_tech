@@ -53,7 +53,7 @@ x.cust={...c};x.bat={brand:b.brand,model:b.model,wm:b.wm,wterms:b.wterms};x.unit
 x.sub=x.qty*x.unit;x.taxable=Math.max(0,x.sub-x.disc);x.tax=+(x.taxable*x.gst/100).toFixed(2);x.total=+(x.taxable+x.tax).toFixed(2);
 x.paid=Math.min(x.paid,x.total);x.bal=+(x.total-x.paid).toFixed(2);x.pstat=x.bal<=0?'Paid':x.paid>0?'Partially Paid':'Unpaid';
 x.wstart=x.date;x.wend=addM(x.date,x.bat.wm);return x}
-const API_URL='https://trending-tech.onrender.com'
+const API_URL='https://trending-tech1.onrender.com'
 const useApi=()=>!!API_URL;
 let auth=null,saving=false;try{auth=JSON.parse(sessionStorage.getItem('vt.auth'))}catch(_){}
 async function apiFetch(path,opt={}){let r;try{r=await fetch(API_URL.replace(/\/$/,'')+path,{...opt,cache:'no-store',headers:{'Content-Type':'application/json',...(auth?{Authorization:'Bearer '+auth.token}:{})}})}catch(_){throw new Error('Cannot reach the server')}
