@@ -137,9 +137,18 @@ app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
 (async () => {
   await migrate(pool);
-  if (ADMIN_EMAIL && ADMIN_PASSWORD) {                       // first admin from env; never overwritten afterwards
-    if (ADMIN_PASSWORD.length < 10) { console.error('ADMIN_PASSWORD must be at least 10 characters'); process.exit(1); }
-    await pool.query(`INSERT INTO users (email,password_hash,role) VALUES ($1,$2,'admin') ON CONFLICT (email) DO NOTHING`, [ADMIN_EMAIL.toLowerCase(), await bcrypt.hash(ADMIN_PASSWORD, 12)]);
-  }
+  const adminEmail = (ADMIN_EMAIL || '').trim().toLowerCase(), adminPw = (ADMIN_PASSWORD || '').trim();
+  if (adminEmail && adminPw) {
+    if (adminPw.length < 10) { console.error('ADMIN_PASSWORD must be at least 10 characters'); process.exit(1); }
+    const hash = await bcrypt.hash(adminPw, 12);
+    if ((process.env.ADMIN_RESET || '').trim() === 'true') {          // one-time password reset: set ADMIN_RESET=true, deploy, sign in, then delete the variable
+      await pool.query(`INSERT INTO users (email,password_hash,role) VALUES ($1,$2,'admin') ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash, role='admin'`, [adminEmail, hash]);
+      console.log('Admin password RESET for ' + adminEmail + ' - now delete the ADMIN_RESET variable');
+    } else {
+      const r = await pool.query(`INSERT INTO users (email,password_hash,role) VALUES ($1,$2,'admin') ON CONFLICT (email) DO NOTHING`, [adminEmail, hash]);
+      console.log(r.rowCount ? 'Admin user created: ' + adminEmail : 'Admin user already exists: ' + adminEmail + ' (password unchanged; use ADMIN_RESET=true to change it)');
+    }
+  } else console.log('ADMIN_EMAIL / ADMIN_PASSWORD are not set - no admin user is created');
+  console.log('Users in database: ' + (await pool.query('SELECT count(*)::int AS n FROM users')).rows[0].n);
   app.listen(PORT, () => console.log('VoltTrack API listening on ' + PORT));
 })().catch(e => { console.error('Startup failed:', e.message); process.exit(1); });
