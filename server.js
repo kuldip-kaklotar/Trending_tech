@@ -45,25 +45,13 @@ const wrap = fn => (req, res) => fn(req, res).catch(e => {
 
 // ---------- public ----------
 app.get('/api/health', wrap(async (_req, res) => { await pool.query('SELECT 1'); res.json({ status: 'ok', db: 'up', time: new Date().toISOString() }); }));
-app.post('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false }), wrap(async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase(), pw = String(req.body.password || '');
-  const u = (await pool.query('SELECT * FROM users WHERE email=$1', [email])).rows[0];
-  const ok = await bcrypt.compare(pw, u ? u.password_hash : '$2a$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali');
-  if (!u || !ok) return res.status(401).json({ error: 'Invalid email or password' });
-  res.json({ token: jwt.sign({ sub: u.id, role: u.role, email: u.email }, JWT_SECRET, { expiresIn: '12h' }), role: u.role, email: u.email });
-}));
+// ---------- authentication, authorization, user management (auth.js) ----------
+const { auth, need } = require('./auth')({ app, pool, bcrypt, jwt, JWT_SECRET, rateLimit, wrap });
 
-// ---------- protected ----------
-const auth = (req, res, next) => {
-  const h = req.headers.authorization || '';
-  try { req.user = jwt.verify(h.startsWith('Bearer ') ? h.slice(7) : '', JWT_SECRET); next(); }
-  catch { res.status(401).json({ error: 'Login required' }); }
-};
-const adminOnly = (req, res, next) => req.user.role === 'admin' ? next() : res.status(403).json({ error: 'Admin access required' });
+// ---------- protected: customers ----------
 app.use('/api/customers', auth, rateLimit({ windowMs: 60 * 1000, max: 240, standardHeaders: true, legacyHeaders: false }));
-app.get('/api/auth/me', auth, (req, res) => res.json({ email: req.user.email, role: req.user.role }));
 
-app.get('/api/customers', wrap(async (req, res) => {
+app.get('/api/customers', need('customers:read'), wrap(async (req, res) => {
   const archived = req.query.archived === 'true', q = String(req.query.q || '').trim();
   const limit = Math.min(Math.max(+req.query.limit || 500, 1), 1000), offset = Math.max(+req.query.offset || 0, 0);
   const fp = [archived]; let where = 'archived = $1';
@@ -73,18 +61,18 @@ app.get('/api/customers', wrap(async (req, res) => {
     pool.query(`SELECT count(*)::int AS n FROM customers WHERE ${where}`, fp)]);
   res.json({ customers: rows.rows, total: tot.rows[0].n, limit, offset });   // total = ALL matching rows, not just this page
 }));
-app.get('/api/customers/:code', wrap(async (req, res) => {
+app.get('/api/customers/:code', need('customers:read'), wrap(async (req, res) => {
   const r = await pool.query(`SELECT ${COLS} FROM customers WHERE customer_code=$1`, [req.params.code]);
   r.rowCount ? res.json(r.rows[0]) : res.status(404).json({ error: 'Not found' });
 }));
-app.post('/api/customers', wrap(async (req, res) => {
+app.post('/api/customers', need('customers:create'), wrap(async (req, res) => {
   const { v, errors, ok } = validate(req.body); if (!ok) return res.status(400).json({ error: 'Validation failed', errors });
   const r = await pool.query(`INSERT INTO customers (name,mobile,alt_mobile,email,address,city,state,pin,reg_no,bike_brand,bike_model,chassis)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING ${COLS}`,
     [v.name, v.mobile, v.alt, v.email, v.address, v.city, v.state, v.pin, v.reg, v.brand, v.model, v.chassis]);
   res.status(201).json(r.rows[0]);
 }));
-app.put('/api/customers/:code', wrap(async (req, res) => {
+app.put('/api/customers/:code', need('customers:update'), wrap(async (req, res) => {
   const { v, errors, ok } = validate(req.body); if (!ok) return res.status(400).json({ error: 'Validation failed', errors });
   const r = await pool.query(`UPDATE customers SET name=$2,mobile=$3,alt_mobile=$4,email=$5,address=$6,city=$7,state=$8,pin=$9,reg_no=$10,
     bike_brand=$11,bike_model=$12,chassis=$13,updated_at=now() WHERE customer_code=$1 AND NOT archived RETURNING ${COLS}`,
@@ -92,13 +80,13 @@ app.put('/api/customers/:code', wrap(async (req, res) => {
   r.rowCount ? res.json(r.rows[0]) : res.status(404).json({ error: 'Not found' });
 }));
 // Default = archive (keeps history safe). ?permanent=true removes the row (admin only).
-app.delete('/api/customers/:code', adminOnly, wrap(async (req, res) => {
+app.delete('/api/customers/:code', need('customers:delete'), wrap(async (req, res) => {
   const r = req.query.permanent === 'true'
     ? await pool.query('DELETE FROM customers WHERE customer_code=$1', [req.params.code])
     : await pool.query('UPDATE customers SET archived=true, archived_at=now(), updated_at=now() WHERE customer_code=$1 AND NOT archived', [req.params.code]);
   r.rowCount ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
 }));
-app.post('/api/customers/:code/restore', adminOnly, wrap(async (req, res) => {
+app.post('/api/customers/:code/restore', need('customers:restore'), wrap(async (req, res) => {
   const r = await pool.query(`UPDATE customers SET archived=false, archived_at=NULL, updated_at=now() WHERE customer_code=$1 AND archived RETURNING ${COLS}`, [req.params.code]);
   r.rowCount ? res.json(r.rows[0]) : res.status(404).json({ error: 'Not found' });
 }));
@@ -106,7 +94,7 @@ app.post('/api/customers/:code/restore', adminOnly, wrap(async (req, res) => {
 // Repeatable import of a browser's old localStorage customers. Never duplicates a bike (registration no.) and never
 // drops a person: if an old ID is already used by someone else, the record gets a new ID. Returns map = [{from,to}]
 // so the browser can re-point its local purchases at the right server customer.
-app.post('/api/customers/import', adminOnly, wrap(async (req, res) => {
+app.post('/api/customers/import', need('customers:import'), wrap(async (req, res) => {
   const list = Array.isArray(req.body.customers) ? req.body.customers.slice(0, 5000) : [];
   const out = { imported: 0, skipped: [], invalid: [], map: [] }, c = await pool.connect();
   try {
@@ -135,20 +123,29 @@ app.post('/api/customers/import', adminOnly, wrap(async (req, res) => {
 
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
+// Creates the login for a role from environment variables. Existing users are never changed unless <LABEL>_RESET=true.
+async function ensureUser(label, emailRaw, pwRaw, role, resetFlag) {
+  const email = (emailRaw || '').trim().toLowerCase(), pw = (pwRaw || '').trim();
+  if (!email || !pw) { console.log(`${label}_EMAIL / ${label}_PASSWORD are not set - no ${role} user is created`); return; }
+  if (pw.length < 10) { console.error(`${label}_PASSWORD must be at least 10 characters`); process.exit(1); }
+  const hash = await bcrypt.hash(pw, 12);
+  if ((resetFlag || '').trim() === 'true') {          // one-time reset: set <LABEL>_RESET=true, deploy, sign in, then delete the variable
+    await pool.query(`INSERT INTO users (email,password_hash,role) VALUES ($1,$2,$3)
+      ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash,
+      role = CASE WHEN EXCLUDED.role='admin' OR users.role<>'admin' THEN EXCLUDED.role ELSE users.role END`, [email, hash, role]);
+    console.log(`${role} password RESET for ${email} - now delete the ${label}_RESET variable`);
+  } else {
+    const r = await pool.query(`INSERT INTO users (email,password_hash,role) VALUES ($1,$2,$3) ON CONFLICT (email) DO NOTHING`, [email, hash, role]);
+    console.log(r.rowCount ? `${role} user created: ${email}` : `${role} user already exists: ${email} (password unchanged; use ${label}_RESET=true to change it)`);
+  }
+}
+
 (async () => {
   await migrate(pool);
-  const adminEmail = (ADMIN_EMAIL || '').trim().toLowerCase(), adminPw = (ADMIN_PASSWORD || '').trim();
-  if (adminEmail && adminPw) {
-    if (adminPw.length < 10) { console.error('ADMIN_PASSWORD must be at least 10 characters'); process.exit(1); }
-    const hash = await bcrypt.hash(adminPw, 12);
-    if ((process.env.ADMIN_RESET || '').trim() === 'true') {          // one-time password reset: set ADMIN_RESET=true, deploy, sign in, then delete the variable
-      await pool.query(`INSERT INTO users (email,password_hash,role) VALUES ($1,$2,'admin') ON CONFLICT (email) DO UPDATE SET password_hash=EXCLUDED.password_hash, role='admin'`, [adminEmail, hash]);
-      console.log('Admin password RESET for ' + adminEmail + ' - now delete the ADMIN_RESET variable');
-    } else {
-      const r = await pool.query(`INSERT INTO users (email,password_hash,role) VALUES ($1,$2,'admin') ON CONFLICT (email) DO NOTHING`, [adminEmail, hash]);
-      console.log(r.rowCount ? 'Admin user created: ' + adminEmail : 'Admin user already exists: ' + adminEmail + ' (password unchanged; use ADMIN_RESET=true to change it)');
-    }
-  } else console.log('ADMIN_EMAIL / ADMIN_PASSWORD are not set - no admin user is created');
+  const norm = v => (v || '').trim().toLowerCase();
+  if (norm(ADMIN_EMAIL) && norm(ADMIN_EMAIL) === norm(process.env.STAFF_EMAIL)) { console.error('STAFF_EMAIL must be different from ADMIN_EMAIL'); process.exit(1); }
+  await ensureUser('ADMIN', ADMIN_EMAIL, ADMIN_PASSWORD, 'admin', process.env.ADMIN_RESET);
+  await ensureUser('STAFF', process.env.STAFF_EMAIL, process.env.STAFF_PASSWORD, 'staff', process.env.STAFF_RESET);
   console.log('Users in database: ' + (await pool.query('SELECT count(*)::int AS n FROM users')).rows[0].n);
   app.listen(PORT, () => console.log('VoltTrack API listening on ' + PORT));
 })().catch(e => { console.error('Startup failed:', e.message); process.exit(1); });
